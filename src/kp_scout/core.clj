@@ -4,10 +4,12 @@
         clojure.set
         clojure.pprint
         postal.core)
+  (:import [java.net URLEncoder])
   (:require [clj-http.client :as client]
             [cheshire.core :as json]))
 
-(def searchUrlFormat "https://mydoctor.kaiserpermanente.org/ncal/mdo/cyd/jsonService.jsp?serviceNm=getAvailableProviders.json&jsonInput=^~\"tokenId\":\"\",\"deptId\":\"%s\",\"facId\":\"\",\"zipCode\":\"%s\",\"distance\":\"15\",\"slotsInPage\":\"1000\",\"showFirstField\":\"default\",\"showFirstValue\":\"\"$$&clientShortNm=ncalcydnew")
+(def searchUri "https://mydoctor.kaiserpermanente.org/ncal/mdo/cyd/jsonService.jsp?serviceNm=getAvailableProviders.json")
+(def searchUrlFormat "{\"tokenId\":\"\",\"deptId\":\"%s\",\"facId\":\"\",\"zipCode\":\"%s\",\"distance\":\"15\",\"slotsInPage\":\"1000\",\"showFirstField\":\"default\",\"showFirstValue\":\"\"}")
 
 (defn- send-mail [opts]
   (println (send-message {:host (:host opts)
@@ -21,8 +23,9 @@
                           :body    (str "Found Kaiser doctor " (:name opts))})))
 
 (defn- get-doctors [zip speciality]
-  (let [searchString (format searchUrlFormat speciality zip)
-        searchResult (client/get searchString)
+  (let [formParams (format searchUrlFormat speciality zip)
+        encodedParams (URLEncoder/encode formParams "UTF-8")
+        searchResult (client/post searchUri {:form-params {:jsonInput encodedParams}})
         searchResultJson (json/parse-string (:body searchResult))
         doctorInfo (get (first (get searchResultJson "jsonResponse"))
                         "availableProviderSlots")]
